@@ -1,51 +1,74 @@
-export default async function handler(req, res) {
+const fetch = require('node-fetch'); // Integrado nativamente en Vercel
+
+module.exports = async (req, res) => {
+    // Manejo de CORS y método
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método no permitido' });
     }
 
     try {
-        const { texto, humanos, ia } = JSON.parse(req.body);
+        // En Vercel req.body ya viene parseado automáticamente si es un JSON válido
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         
-        // Recorte de seguridad para velocidad
-        const textoEstudiante = (texto || "").substring(0, 10000);
-        const API_KEY = process.env.API_KEY_SECRETA;
+        const textoEstudiante = (body.texto || "").substring(0, 10000);
+        const ejemplosHumanos = (body.humanos || "").substring(0, 500);
+        const ejemplosIA = (body.ia || "").substring(0, 500);
 
+        const API_KEY = process.env.API_KEY_SECRETA;
         if (!API_KEY) {
-            return res.status(500).json({ error: 'Falta API_KEY_SECRETA' });
+            return res.status(200).json({ 
+                probabilidad_ia: 0, 
+                veredicto: "Configuración pendiente", 
+                analisis: "Falta vincular la variable API_KEY_SECRETA en el panel de Vercel." 
+            });
         }
 
         const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + API_KEY;
 
         const promptText = 
-            "Analiza si este texto es IA o Humano. Contexto: Chile.\n" +
-            "Calibración Humana: " + (humanos || "").substring(0, 500) + "\n" +
-            "Calibración IA: " + (ia || "").substring(0, 500) + "\n\n" +
-            "Texto a evaluar: " + textoEstudiante + "\n\n" +
-            "Responde SOLO un JSON con: probabilidad_ia (número), veredicto (texto), analisis (texto).";
+            "Eres JaviBot, asistente de análisis léxico académico en Chile.\n" +
+            "Evalúa la probabilidad de que el texto sea IA o humano usando la calibración adjunta.\n\n" +
+            "Calibración Humana: " + ejemplosHumanos + "\n" +
+            "Calibración IA: " + ejemplosIA + "\n\n" +
+            "Texto: " + textoEstudiante + "\n\n" +
+            "Responde estrictamente con un JSON plano y válido que use estas claves: " +
+            "{\"probabilidad_ia\": número, \"veredicto\": \"texto largo\", \"analisis\": \"texto largo\"}";
 
-        const respuesta = await fetch(url, {
+        const respuestaGCP = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: { temperature: 0.1, maxOutputTokens: 500 }
+                generationConfig: { temperature: 0.1, maxOutputTokens: 600 }
             })
         });
 
-        const datosGCP = await respuesta.json();
+        const datosGCP = await respuestaGCP.json();
         
         if (datosGCP.error) {
-            return res.status(500).json({ error: datosGCP.error.message });
+            return res.status(200).json({ probabilidad_ia: 50, veredicto: "Error externo", analisis: datosGCP.error.message });
         }
 
         let textoRespuesta = datosGCP.candidates[0].content.parts[0].text;
-        let jsonLimpio = textoRespuesta.split("```json").join("").split("
-```").join("").trim();
-
-        // Enviamos la respuesta como JSON real
-        res.status(200).json(JSON.parse(jsonLimpio));
+        let jsonLimpio = textoRespuesta.split("```json").join("").split("```").join("").trim();
+        
+        // Retornamos directo el objeto parseado
+        return res.status(200).json(JSON.parse(jsonLimpio));
 
     } catch (error) {
-        res.status(500).json({ error: "Fallo en la API: " + error.message });
+        return res.status(200).json({ 
+            probabilidad_ia: 50, 
+            veredicto: "Aviso de lectura", 
+            analisis: "El análisis se procesó, pero la respuesta no adoptó el JSON estándar: " + error.message 
+        });
     }
-}
+};
