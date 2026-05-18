@@ -1,7 +1,7 @@
-const fetch = require('node-fetch'); // Integrado nativamente en Vercel
+const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // Manejo de CORS y método
+    // Configuración de encabezados para evitar bloqueos de red (CORS)
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -16,9 +16,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // En Vercel req.body ya viene parseado automáticamente si es un JSON válido
+        // Vercel maneja req.body automáticamente si detecta JSON
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         
+        // Optimizaciones de longitud para evitar caídas por exceso de texto
         const textoEstudiante = (body.texto || "").substring(0, 10000);
         const ejemplosHumanos = (body.humanos || "").substring(0, 500);
         const ejemplosIA = (body.ia || "").substring(0, 500);
@@ -55,13 +56,16 @@ module.exports = async (req, res) => {
         const datosGCP = await respuestaGCP.json();
         
         if (datosGCP.error) {
-            return res.status(200).json({ probabilidad_ia: 50, veredicto: "Error externo", analisis: datosGCP.error.message });
+            return res.status(200).json({ 
+                probabilidad_ia: 50, 
+                veredicto: "Error externo de API", 
+                analisis: datosGCP.error.message 
+            });
         }
 
         let textoRespuesta = datosGCP.candidates[0].content.parts[0].text;
         let jsonLimpio = textoRespuesta.split("```json").join("").split("```").join("").trim();
         
-        // Retornamos directo el objeto parseado
         return res.status(200).json(JSON.parse(jsonLimpio));
 
     } catch (error) {
