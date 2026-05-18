@@ -38,7 +38,7 @@
         #resultado { margin-top: 25px; display: none; }
         .resultado-box { padding: 25px; border-radius: 8px; background-color: #fafafa; border: 1px solid #ddd; }
         .rango-badge { display: inline-block; padding: 8px 15px; border-radius: 20px; color: white; font-weight: bold; font-size: 1.1em; margin: 15px 0; }
-        .evidencia-texto { background: white; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; }
+        .evidencia-texto { background: white; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; color: #2c3e50; }
         
         .footer-gemini { text-align: center; margin-top: 30px; font-size: 14px; color: #7f8c8d; font-weight: bold; }
     </style>
@@ -151,9 +151,9 @@
             if(!texto.trim()) return alert("Ingresa o carga un texto primero.");
 
             btn.disabled = true;
-            btn.innerText = "JaviBot buscando evidencia... ⏳";
+            btn.innerText = "JaviBot razonando justificación... ⏳";
             divResultado.style.display = "block";
-            divResultado.innerHTML = "<div class='resultado-box'><p>🔍 Analizando sintaxis, conectores y patrones rítmicos...</p></div>";
+            divResultado.innerHTML = "<div class='resultado-box'><p>🔍 Analizando estructura léxica y redactando informe...</p></div>";
 
             try {
                 const respuesta = await fetch('/api/evaluar_texto', {
@@ -172,14 +172,14 @@
                 try {
                     datos = JSON.parse(textoCrudo);
                 } catch(e) {
-                    throw new Error("El servidor falló al estructurar los datos. Detalle: " + textoCrudo.substring(0, 100));
+                    throw new Error("Fallo de comunicación interna: " + textoCrudo.substring(0, 100));
                 }
 
                 if (datos.error) { throw new Error(datos.error); }
 
-                // Lógica de Semáforo y Colores
+                // Sistema de Semáforo
                 let nivel = (datos.nivel_sospecha || "Bajo").toLowerCase();
-                let colorPrimario = "#27ae60"; // Verde por defecto
+                let colorPrimario = "#27ae60"; // Verde
                 let icono = "🟢";
                 let tituloNivel = "Sospecha Baja o Nula";
 
@@ -188,10 +188,12 @@
                     icono = "🔴";
                     tituloNivel = "Alta Sospecha de IA";
                 } else if (nivel.includes("moderado") || nivel.includes("moderada")) {
-                    colorPrimario = "#f39c12"; // Amarillo/Naranja
+                    colorPrimario = "#f39c12"; // Amarillo
                     icono = "🟡";
                     tituloNivel = "Sospecha Moderada de IA";
                 }
+
+                const textoJustificacion = (datos.justificacion || "Sin detalles adicionales.").replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
 
                 divResultado.innerHTML = `
                     <div class="resultado-box" style="border-top: 5px solid ${colorPrimario};">
@@ -199,27 +201,4 @@
                             ${icono} ${tituloNivel}
                         </h2>
                         
-                        <div class="rango-badge" style="background-color: ${colorPrimario};">
-                            Rango Estimado: ${datos.rango_minimo}% - ${datos.rango_maximo}%
-                        </div>
-
-                        <h4 style="margin-bottom: 5px; color: #2c3e50;">🔎 Evidencia Detectada:</h4>
-                        <div class="evidencia-texto">
-                            ${datos.evidencia.replace(/\n/g, '<br>')}
-                        </div>
-                    </div>
-                `;
-
-            } catch (error) {
-                divResultado.innerHTML = `
-                    <div class="resultado-box" style="border-top: 5px solid #c0392b; background: #fdf2f2;">
-                        🛑 <strong>Error en el proceso:</strong><br><br>${error.message}
-                    </div>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Analizar con JaviBot";
-            }
-        }
-    </script>
-</body>
-</html>
+                        <div class="rango-badge" style="background-color: ${colorPrimario
