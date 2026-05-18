@@ -6,18 +6,18 @@
     <title>JaviBot - Detector de IA</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; display: block !important; }
         .container { background: #ffffff; max-width: 700px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { color: #1a73e8; text-align: center; }
-        .config-btn { float: right; cursor: pointer; font-size: 20px; border: none; background: none; }
+        h1 { color: #1a73e8; text-align: center; margin-top: 10px; }
+        .config-btn { float: right; cursor: pointer; font-size: 24px; border: none; background: none; padding: 5px; }
         #modulo-entrenamiento { display: none; background: #202124; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        textarea { width: 100%; height: 150px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
+        #modulo-entrenamiento label { display: block; margin-top: 10px; font-weight: bold; }
+        textarea { width: 100%; height: 150px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; font-size: 14px; }
         .upload-section { border: 2px dashed #1a73e8; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; background: #f8fbff; }
-        .btn-analizar { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        .btn-analizar { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-analizar:hover { background: #1557b0; }
         #resultado { margin-top: 20px; padding: 20px; border-radius: 8px; display: none; background: #e8f0fe; border: 1px solid #1a73e8; }
     </style>
@@ -25,7 +25,7 @@
 <body>
 
     <div class="container">
-        <button class="config-btn" onclick="toggleEntrenamiento()">⚙️</button>
+        <button class="config-btn" onclick="toggleEntrenamiento()" type="button">⚙️</button>
         <h1>🤖 JaviBot</h1>
         <p style="text-align: center; color: #5f6368;">Análisis de autoría académica</p>
 
@@ -35,116 +35,77 @@
             <textarea id="ejemplo_humano" style="height: 60px;"></textarea>
             <label>Ejemplos IA:</label>
             <textarea id="ejemplo_ia" style="height: 60px;"></textarea>
-            <button onclick="guardarEntrenamiento()" style="margin-top:10px;">Guardar</button>
+            <button onclick="guardarEntrenamiento()" type="button" style="margin-top:10px; padding: 5px 15px; cursor: pointer;">Guardar</button>
         </div>
 
         <div class="upload-section">
             <p>Carga un archivo (PDF o Word):</p>
             <input type="file" id="file_upload" accept=".pdf, .docx">
-            <p id="estado_archivo" style="font-size: 12px; color: #1a73e8;"></p>
+            <p id="estado_archivo" style="font-size: 13px; color: #1a73e8; font-weight: bold; margin-top: 10px;"></p>
         </div>
 
-        <textarea id="texto_input" placeholder="El texto aparecerá aquí..."></textarea>
+        <textarea id="texto_input" placeholder="El texto aparecerá aquí de forma automática al cargar un archivo, o puedes pegarlo directamente..."></textarea>
         
-        <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()">Analizar ahora</button>
+        <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()" type="button">Analizar ahora</button>
         
         <div id="resultado"></div>
     </div>
 
     <script>
+        // Configuración segura del Worker de PDF.js para evitar que se congele el navegador
+        try {
+            if (typeof window !== 'undefined' && window['pdfjs-dist/build/pdf']) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+            }
+        } catch (e) {
+            console.log("Aviso de inicialización de PDF worker.");
+        }
+
         // Lógica de lectura de archivos (PDF/Word)
         document.getElementById('file_upload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             const estado = document.getElementById('estado_archivo');
             const textArea = document.getElementById('texto_input');
             if (!file) return;
-            estado.textContent = "Procesando documento... ⏳";
+            
+            estado.textContent = "⏳ Procesando documento... por favor espera.";
+            textArea.value = "";
+            
             const ext = file.name.split('.').pop().toLowerCase();
             try {
                 if (ext === 'pdf') {
                     const reader = new FileReader();
                     reader.onload = async function() {
-                        const typedarray = new Uint8Array(this.result);
-                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                        let text = "";
-                        for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i);
-                            const content = await page.getTextContent();
-                            text += content.items.map(item => item.str).join(' ') + " ";
+                        try {
+                            const typedarray = new Uint8Array(this.result);
+                            // Carga directa usando la librería global externa
+                            const pdf = await window.pdfjsLib.getDocument(typedarray).promise;
+                            let text = "";
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const content = await page.getTextContent();
+                                text += content.items.map(item => item.str).join(' ') + " ";
+                            }
+                            textArea.value = text;
+                            estado.textContent = "✅ PDF cargado con éxito.";
+                        } catch (errPdf) {
+                            estado.textContent = "❌ Error al extraer texto del PDF.";
+                            console.error(errPdf);
                         }
-                        textArea.value = text;
-                        estado.textContent = "✅ PDF cargado con éxito";
                     };
                     reader.readAsArrayBuffer(file);
                 } else if (ext === 'docx') {
                     const reader = new FileReader();
                     reader.onload = function(event) {
-                        mammoth.extractRawText({arrayBuffer: event.target.result}).then(r => {
-                            textArea.value = r.value;
-                            estado.textContent = "✅ Word cargado con éxito";
-                        });
+                        window.mammoth.extractRawText({arrayBuffer: event.target.result})
+                            .then(r => {
+                                textArea.value = r.value;
+                                estado.textContent = "✅ Word cargado con éxito.";
+                            })
+                            .catch(errDocx => {
+                                estado.textContent = "❌ Error al procesar el archivo Word.";
+                            });
                     };
                     reader.readAsArrayBuffer(file);
                 }
-            } catch (err) { 
-                estado.textContent = "❌ Error al procesar el archivo"; 
-            }
-        });
-
-        // Control del Módulo de Calibración
-        function toggleEntrenamiento() {
-            const m = document.getElementById('modulo-entrenamiento');
-            m.style.display = m.style.display === 'block' ? 'none' : 'block';
-        }
-        function guardarEntrenamiento() {
-            localStorage.setItem('javibot_humano', document.getElementById('ejemplo_humano').value);
-            localStorage.setItem('javibot_ia', document.getElementById('ejemplo_ia').value);
-            alert("Calibración guardada exitosamente");
-        }
-        window.onload = () => {
-            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
-            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
-        };
-
-        // Función de conexión optimizada para Vercel
-        async function analizarTexto() {
-            const texto = document.getElementById('texto_input').value;
-            const div = document.getElementById('resultado');
-            const btn = document.getElementById('btn-submit');
-            if(!texto.trim()) return alert("Por favor, ingresa o carga un texto primero");
-
-            btn.disabled = true;
-            btn.innerText = "JaviBot analizando... ⏳";
-            div.style.display = "block";
-            div.innerHTML = "Analizando patrones y estilo léxico...";
-
-            try {
-                const res = await fetch('/api/evaluar_texto', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        texto: texto,
-                        humanos: localStorage.getItem('javibot_humano') || "",
-                        ia: localStorage.getItem('javibot_ia') || ""
-                    })
-                });
-                
-                if (!res.ok) {
-                    const textoError = await res.text();
-                    throw new Error("Respuesta del servidor no exitosa: " + textoError);
-                }
-
-                const datos = await res.json();
-                
-                // Extracción segura de la probabilidad
-                let probabilidad = datos.probabilidad_ia ?? 50;
-                let colorAlerta = "#27ae60"; 
-                if (probabilidad > 75) colorAlerta = "#c0392b"; 
-                else if (probabilidad > 40) colorAlerta = "#f39c12";
-
-                div.innerHTML = `
-                    <h3 style="color: ${colorAlerta}; margin-top: 0;">Veredicto: ${datos.veredicto || 'No disponible'}</h3>
-                    <p style="font-size: 1.1em;"><strong>Probabilidad de IA:</strong> ${probabilidad}%</p>
-                    <p style="line-height:
+            } catch (err)
