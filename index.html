@@ -85,53 +85,7 @@
     </div>
 
     <script>
-        try { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js'; } catch (e) {}
-
-        document.getElementById('file_upload').addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            const estadoTexto = document.getElementById('estado_archivo');
-            const textArea = document.getElementById('texto_input');
-            if (!file) return;
-            estadoTexto.textContent = "⏳ Extrayendo texto...";
-            estadoTexto.style.color = "#d35400";
-            textArea.value = ""; 
-            const ext = file.name.split('.').pop().toLowerCase();
-            try {
-                if (ext === 'pdf') {
-                    const reader = new FileReader();
-                    reader.onload = async function() {
-                        try {
-                            const typedarray = new Uint8Array(this.result);
-                            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                            let fullText = "";
-                            for (let i = 1; i <= pdf.numPages; i++) {
-                                const page = await pdf.getPage(i);
-                                const content = await page.getTextContent();
-                                fullText += content.items.map(item => item.str).join(' ') + " \n\n";
-                            }
-                            textArea.value = fullText;
-                            estadoTexto.textContent = "✅ PDF extraído con éxito.";
-                            estadoTexto.style.color = "#27ae60";
-                        } catch (err) { estadoTexto.textContent = "❌ Error al leer PDF."; estadoTexto.style.color = "#c0392b"; }
-                    };
-                    reader.readAsArrayBuffer(file);
-                } else if (ext === 'docx') {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        mammoth.extractRawText({arrayBuffer: event.target.result})
-                            .then(r => { textArea.value = r.value; estadoTexto.textContent = "✅ Word extraído con éxito."; estadoTexto.style.color = "#27ae60"; })
-                            .catch(() => { estadoTexto.textContent = "❌ Error al leer Word."; estadoTexto.style.color = "#c0392b"; });
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            } catch (error) { estadoTexto.textContent = "❌ Error al leer archivo."; estadoTexto.style.color = "#c0392b"; }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
-            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
-        });
-
+        // 1. FUNCIONES PRINCIPALES PROTEGIDAS (Cargan de inmediato)
         function toggleEntrenamiento() {
             const mod = document.getElementById('modulo-entrenamiento');
             mod.style.display = mod.style.display === 'block' ? 'none' : 'block';
@@ -143,12 +97,20 @@
             alert("Memoria calibrada correctamente.");
         }
 
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
+            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
+        });
+
         async function analizarTexto() {
             const texto = document.getElementById('texto_input').value;
             const divResultado = document.getElementById('resultado');
             const btn = document.getElementById('btn-submit');
             
-            if(!texto.trim()) return alert("Ingresa o carga un texto primero.");
+            if(!texto.trim()) {
+                alert("Ingresa o carga un texto primero.");
+                return;
+            }
 
             btn.disabled = true;
             btn.innerText = "JaviBot razonando justificación... ⏳";
@@ -172,7 +134,7 @@
                 try {
                     datos = JSON.parse(textoCrudo);
                 } catch(e) {
-                    throw new Error("Fallo de comunicación interna: " + textoCrudo.substring(0, 100));
+                    throw new Error("Fallo de comunicación interna. Detalle: " + textoCrudo.substring(0, 100));
                 }
 
                 if (datos.error) { throw new Error(datos.error); }
@@ -201,4 +163,82 @@
                             ${icono} ${tituloNivel}
                         </h2>
                         
-                        <div class="rango-badge" style="background-color: ${colorPrimario
+                        <div class="rango-badge" style="background-color: ${colorPrimario};">
+                            Rango Estimado: ${datos.rango_minimo}% - ${datos.rango_maximo}%
+                        </div>
+
+                        <h4 style="margin-bottom: 5px; color: #2c3e50;">🧠 Justificación Analítica:</h4>
+                        <div class="evidencia-texto">
+                            ${textoJustificacion}
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                divResultado.innerHTML = `
+                    <div class="resultado-box" style="border-top: 5px solid #c0392b; background: #fdf2f2;">
+                        🛑 <strong>Error en el proceso:</strong><br><br>${error.message}
+                    </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Analizar con JaviBot";
+            }
+        }
+
+        // 2. LECTOR DE ARCHIVOS (Aislado al final para no bloquear los botones)
+        window.addEventListener('load', () => {
+            try { 
+                if (window.pdfjsLib) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js'; 
+                }
+            } catch (e) { console.warn("Librería PDF diferida."); }
+
+            const fileInput = document.getElementById('file_upload');
+            if(fileInput) {
+                fileInput.addEventListener('change', async function(e) {
+                    const file = e.target.files[0];
+                    const estadoTexto = document.getElementById('estado_archivo');
+                    const textArea = document.getElementById('texto_input');
+                    if (!file) return;
+                    estadoTexto.textContent = "⏳ Extrayendo texto...";
+                    estadoTexto.style.color = "#d35400";
+                    textArea.value = ""; 
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    try {
+                        if (ext === 'pdf' && window.pdfjsLib) {
+                            const reader = new FileReader();
+                            reader.onload = async function() {
+                                try {
+                                    const typedarray = new Uint8Array(this.result);
+                                    const pdf = await window.pdfjsLib.getDocument(typedarray).promise;
+                                    let fullText = "";
+                                    for (let i = 1; i <= pdf.numPages; i++) {
+                                        const page = await pdf.getPage(i);
+                                        const content = await page.getTextContent();
+                                        fullText += content.items.map(item => item.str).join(' ') + " \n\n";
+                                    }
+                                    textArea.value = fullText;
+                                    estadoTexto.textContent = "✅ PDF extraído con éxito.";
+                                    estadoTexto.style.color = "#27ae60";
+                                } catch (err) { estadoTexto.textContent = "❌ Error al leer PDF."; estadoTexto.style.color = "#c0392b"; }
+                            };
+                            reader.readAsArrayBuffer(file);
+                        } else if (ext === 'docx' && window.mammoth) {
+                            const reader = new FileReader();
+                            reader.onload = function(event) {
+                                window.mammoth.extractRawText({arrayBuffer: event.target.result})
+                                    .then(r => { textArea.value = r.value; estadoTexto.textContent = "✅ Word extraído con éxito."; estadoTexto.style.color = "#27ae60"; })
+                                    .catch(() => { estadoTexto.textContent = "❌ Error al leer Word."; estadoTexto.style.color = "#c0392b"; });
+                            };
+                            reader.readAsArrayBuffer(file);
+                        } else {
+                            estadoTexto.textContent = "❌ Formato no compatible o librerías bloqueadas."; 
+                            estadoTexto.style.color = "#c0392b";
+                        }
+                    } catch (error) { estadoTexto.textContent = "❌ Error general al abrir el archivo."; estadoTexto.style.color = "#c0392b"; }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
