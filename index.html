@@ -3,35 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JaviBot - Detector de IA Académico (Vercel)</title>
+    <title>JaviBot - Detector de IA</title>
     
+    <!-- Librerías Externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
-        
-        .header-container { display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 10px; }
-        h1 { color: #2c3e50; text-align: center; margin-right: 10px; font-size: 2.2em;}
-        .javibot-logo { font-size: 1.5em; margin-right: 10px; }
-        .config-btn { cursor: pointer; font-size: 20px; opacity: 0.3; transition: opacity 0.3s; border: none; background: none; }
-        .config-btn:hover { opacity: 1; }
-        
-        #modulo-entrenamiento { display: none; background-color: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .training-box label { font-weight: bold; display: block; margin-bottom: 5px; color: #a3e4d7; }
-        .training-box textarea { width: 100%; height: 100px; margin-bottom: 15px; font-size: 14px; padding: 10px; border-radius: 4px; box-sizing: border-box;}
-        .save-btn { background-color: #f39c12; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold;}
-        .save-btn:hover { background-color: #e67e22; }
-        
-        .upload-section { background-color: #eef2f5; padding: 20px; border-radius: 4px; border: 2px dashed #bdc3c7; text-align: center; margin-bottom: 20px; }
-        input[type="file"] { display: none; }
-        .file-label { background-color: #3498db; color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-block; transition: background 0.3s;}
-        .file-label:hover { background-color: #2980b9; }
-        #estado_archivo { display: block; margin-top: 10px; font-size: 14px; color: #7f8c8d; font-weight: bold;}
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; display: block !important; }
+        .container { background: #ffffff; max-width: 700px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; text-align: center; }
+        .config-btn { float: right; cursor: pointer; font-size: 20px; border: none; background: none; }
+        #modulo-entrenamiento { display: none; background: #202124; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        textarea { width: 100%; height: 150px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
+        .upload-section { border: 2px dashed #1a73e8; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; background: #f8fbff; }
+        .btn-analizar { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        .btn-analizar:hover { background: #1557b0; }
+        #resultado { margin-top: 20px; padding: 20px; border-radius: 8px; display: none; background: #e8f0fe; border: 1px solid #1a73e8; }
+    </style>
+</head>
+<body>
 
-        .main-text { width: 100%; height: 250px; padding: 15px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; box-sizing: border-box; margin-bottom: 20px; }
-        .btn-analizar { background-color: #27ae60; color: white; border: none; padding: 15px 24px; font-size: 18px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
-        .btn-analizar:hover { background-color: #2ecc71; }
-        .btn-analizar:disabled { background-color: #95
+    <div class="container">
+        <button class="config-btn" onclick="toggleEntrenamiento()">⚙️</button>
+        <h1>🤖 JaviBot</h1>
+        <p style="text-align: center; color: #5f6368;">Análisis de autoría académica</p>
+
+        <div id="modulo-entrenamiento">
+            <h3>Calibración</h3>
+            <label>Ejemplos Humanos:</label>
+            <textarea id="ejemplo_humano" style="height: 60px;"></textarea>
+            <label>Ejemplos IA:</label>
+            <textarea id="ejemplo_ia" style="height: 60px;"></textarea>
+            <button onclick="guardarEntrenamiento()" style="margin-top:10px;">Guardar</button>
+        </div>
+
+        <div class="upload-section">
+            <p>Carga un archivo (PDF o Word):</p>
+            <input type="file" id="file_upload" accept=".pdf, .docx">
+            <p id="estado_archivo" style="font-size: 12px; color: #1a73e8;"></p>
+        </div>
+
+        <textarea id="texto_input" placeholder="El texto aparecerá aquí..."></textarea>
+        
+        <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()">Analizar ahora</button>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        // Lógica de archivos
+        document.getElementById('file_upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            const estado = document.getElementById('estado_archivo');
+            const textArea = document.getElementById('texto_input');
+            if (!file) return;
+            estado.textContent = "Procesando...";
+            const ext = file.name.split('.').pop().toLowerCase();
+            try {
+                if (ext === 'pdf') {
+                    const reader = new FileReader();
+                    reader.onload = async function() {
+                        const typedarray = new Uint8Array(this.result);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        let text = "";
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const content = await page.getTextContent();
+                            text += content.items.map(item => item.str).join(' ') + " ";
+                        }
+                        textArea.value = text;
+                        estado.textContent = "✅ PDF cargado";
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else if (ext === 'docx') {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        mammoth.extractRawText({arrayBuffer: event.target.result}).then(r => {
+                            textArea.value = r.value;
+                            estado.textContent = "✅ Word cargado";
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+            } catch (err) { estado.textContent = "❌ Error"; }
+        });
+
+        // Local Storage
+        function toggleEntrenamiento() {
+            const m = document.getElementById('modulo-entrenamiento');
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+        }
+        function guardarEntrenamiento() {
+            localStorage.setItem('javibot_humano', document.getElementById('ejemplo_humano').value);
+            localStorage.setItem('javibot_ia', document.getElementById('ejemplo_ia').value);
+            alert("Calibración guardada");
+        }
+        window.onload = () => {
+            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
+            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
+        };
+
+        // Función de análisis
+        async function analizarTexto() {
+            const texto = document.getElementById('texto_input').value;
+            const div = document.getElementById('resultado');
+            const btn = document.getElementById('btn-submit');
+            if(!texto.trim()) return alert("Pega un texto primero");
+
+            btn.disabled = true;
+            btn.innerText = "Analizando...";
+            div.style.display = "block";
+            div.innerHTML = "Analizando patrones...";
+
+            try {
+                const res = await fetch('/api/evaluar_texto', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        texto: texto,
+                        humanos: localStorage.getItem('javibot_humano') || "",
+                        ia: localStorage.getItem('javibot_ia') || ""
+                    })
+                });
+                const datos = await res.json();
+                
+                div.innerHTML = `
+                    <h3>Veredicto: ${datos.veredicto}</h3>
+                    <p>Probabilidad de IA: ${datos.probabilidad_ia}%</p>
+                    <p><strong>Análisis:</strong> ${datos.analisis}</p>
+                `;
+            } catch (e) {
+                div.innerHTML = "Error: Verifica que el servidor esté activo.";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Analizar ahora";
+            }
+        }
+    </script>
+</body>
+</html>
