@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         const postData = JSON.stringify({
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
-                temperature: 0.2, // Temperatura baja para mantener el razonamiento lógico
+                temperature: 0.2, 
                 maxOutputTokens: 800,
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -66,7 +66,8 @@ module.exports = async (req, res) => {
             return new Promise((resolve, reject) => {
                 const options = {
                     hostname: 'generativelanguage.googleapis.com',
-                    path: '/v1beta/models/gemini-1.5-flash:generateContent', // Actualizado al modelo más estable
+                    // Restaurada la ruta exacta de tu cURL para evitar el Error 404
+                    path: '/v1beta/models/gemini-flash-latest:generateContent', 
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -108,7 +109,6 @@ module.exports = async (req, res) => {
         try {
             datosFinales = JSON.parse(jsonLimpio);
         } catch (eParseo) {
-            // Extracción táctica si falla el formato
             const matchMin = jsonLimpio.match(/"rango_minimo"\s*:\s*(\d+)/i);
             const matchMax = jsonLimpio.match(/"rango_maximo"\s*:\s*(\d+)/i);
             const matchNiv = jsonLimpio.match(/"nivel_sospecha"\s*:\s*["']([^"']+)["']/i);
