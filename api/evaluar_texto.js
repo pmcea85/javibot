@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 module.exports = async (req, res) => {
     // Configuración de encabezados para evitar bloqueos de red (CORS)
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -16,10 +14,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Vercel maneja req.body automáticamente si detecta JSON
+        // Parseo seguro del cuerpo de la petición
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         
-        // Optimizaciones de longitud para evitar caídas por exceso de texto
+        // Optimización de longitud para evitar Timeouts
         const textoEstudiante = (body.texto || "").substring(0, 10000);
         const ejemplosHumanos = (body.humanos || "").substring(0, 500);
         const ejemplosIA = (body.ia || "").substring(0, 500);
@@ -44,6 +42,7 @@ module.exports = async (req, res) => {
             "Responde estrictamente con un JSON plano y válido que use estas claves: " +
             "{\"probabilidad_ia\": número, \"veredicto\": \"texto largo\", \"analisis\": \"texto largo\"}";
 
+        // Usamos el fetch nativo de Vercel (sin require)
         const respuestaGCP = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
