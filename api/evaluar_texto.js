@@ -29,19 +29,19 @@ module.exports = async (req, res) => {
             return res.status(200).json({ error: "Falta API KEY secreta en Vercel." });
         }
 
-        // Prompt optimizado: Exige razonamiento en lugar de copiado literal y fija las reglas matemáticas.
+        // Prompt blindado: Exige un solo párrafo y prohíbe saltos de línea
         const promptText = 
             "Eres JaviBot, un detector de inteligencia artificial especializado en textos académicos.\n" +
             "Analiza el siguiente texto y estima un RANGO DE PROBABILIDAD DE IA (mínimo y máximo).\n\n" +
             "Ejemplos Humanos: " + ejemplosHumanos + ".\n" +
             "Ejemplos IA: " + ejemplosIA + ".\n" +
             "Texto a evaluar: " + textoEstudiante + ".\n\n" +
-            "REGLAS CRÍTICAS:\n" +
-            "1. JUSTIFICACIÓN: En lugar de citar frases literales, redacta un análisis explicando el *por qué* de tu decisión. Analiza la naturalidad, monotonía, uso de conectores o estructura de los párrafos.\n" +
+            "REGLAS CRÍTICAS DE FORMATO Y LÓGICA:\n" +
+            "1. JUSTIFICACIÓN: Redacta un análisis explicando el *por qué* de tu decisión en UN SOLO PÁRRAFO CONTINUO. NO uses saltos de línea, NO uses viñetas ni comillas dobles.\n" +
             "2. COHERENCIA: El 'nivel_sospecha' DEBE coincidir con tus números:\n" +
-            "   - Si el rango está entre 0% y 30%, el nivel DEBE ser 'Bajo'.\n" +
-            "   - Si el rango está entre 31% y 65%, el nivel DEBE ser 'Moderado'.\n" +
-            "   - Si el rango está entre 66% y 100%, el nivel DEBE ser 'Alto'.";
+            "   - De 0% a 30%: 'Bajo'.\n" +
+            "   - De 31% a 65%: 'Moderado'.\n" +
+            "   - De 66% a 100%: 'Alto'.";
 
         const postData = JSON.stringify({
             contents: [{ parts: [{ text: promptText }] }],
@@ -66,7 +66,6 @@ module.exports = async (req, res) => {
             return new Promise((resolve, reject) => {
                 const options = {
                     hostname: 'generativelanguage.googleapis.com',
-                    // Restaurada la ruta exacta de tu cURL para evitar el Error 404
                     path: '/v1beta/models/gemini-flash-latest:generateContent', 
                     method: 'POST',
                     headers: {
@@ -103,12 +102,17 @@ module.exports = async (req, res) => {
             return res.status(200).json({ error: "Respuesta en blanco." });
         }
 
-        const jsonLimpio = textoRespuesta.replace(/```json/gi, "").replace(/```/gi, "").trim();
+        // ASPIRADOR DE CARACTERES: Elimina marcas markdown y CUALQUIER salto de línea/tabulación real que rompa el JSON
+        let jsonLimpio = textoRespuesta.replace(/```json/gi, "").replace(/```/gi, "");
+        jsonLimpio = jsonLimpio.replace(/[\n\r\t]+/g, " ").trim();
+
         let datosFinales;
 
         try {
+            // Ahora el JSON siempre será una sola línea perfecta
             datosFinales = JSON.parse(jsonLimpio);
         } catch (eParseo) {
+            // Salvavidas extremo
             const matchMin = jsonLimpio.match(/"rango_minimo"\s*:\s*(\d+)/i);
             const matchMax = jsonLimpio.match(/"rango_maximo"\s*:\s*(\d+)/i);
             const matchNiv = jsonLimpio.match(/"nivel_sospecha"\s*:\s*["']([^"']+)["']/i);
@@ -118,7 +122,7 @@ module.exports = async (req, res) => {
                 rango_minimo: matchMin ? parseInt(matchMin[1]) : 10,
                 rango_maximo: matchMax ? parseInt(matchMax[1]) : 25,
                 nivel_sospecha: matchNiv ? matchNiv[1] : "Bajo",
-                justificacion: matchJus ? matchJus[1].replace(/\\"/g, "'").replace(/"/g, "'") : "Análisis procesado. Hubo un leve desajuste al formatear el texto, pero los cálculos se realizaron con éxito."
+                justificacion: matchJus ? matchJus[1].replace(/\\"/g, "'").replace(/"/g, "'") : "Análisis completado. Por favor, revisa el rango estimado."
             };
         }
 
