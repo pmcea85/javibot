@@ -3,22 +3,22 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-goog-api-key');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: "Metodo no permitido" });
+        return res.status(405).json({ error: "Método no permitido" });
     }
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         
-        const textoEstudiante = (body.texto || "").substring(0, 10000);
-        const ejemplosHumanos = (body.humanos || "").substring(0, 500);
-        const ejemplosIA = (body.ia || "").substring(0, 500);
+        const textoEstudiante = (body.texto || "").substring(0, 8000);
+        const ejemplosHumanos = (body.humanos || "").substring(0, 400);
+        const ejemplosIA = (body.ia || "").substring(0, 400);
 
         const API_KEY = process.env.API_KEY_SECRETA;
         if (!API_KEY) {
@@ -29,55 +29,18 @@ module.exports = async (req, res) => {
             });
         }
 
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + API_KEY;
+        // URL exacta de tu cURL
+        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
         const promptText = 
-            "Eres JaviBot, asistente de analisis lexico academico en Chile. " +
-            "Evalua si el texto es IA o humano usando la calibracion adjunta. " +
-            "Calibracion Humana: " + ejemplosHumanos + " " +
-            "Calibración IA: " + ejemplosIA + " " +
-            "Texto a evaluar: " + textoEstudiante + " " +
-            "Responde estrictamente con un JSON plano de una sola linea con este formato: " +
-            "{\"probabilidad_ia\": 50, \"veredicto\": \"Tu veredicto aqui\", \"analisis\": \"Tu analisis aqui\"}. " +
-            "IMPORTANTE: No uses comillas dobles internas en las respuestas, usa solo comillas simples.";
+            "Eres JaviBot, un detector de inteligencia artificial para ámbitos académicos universitarios en Chile. " +
+            "Analiza el siguiente texto usando la calibración adjunta.\n\n" +
+            "Ejemplos Humanos: " + ejemplosHumanos + ".\n" +
+            "Ejemplos IA: " + ejemplosIA + ".\n" +
+            "Texto a evaluar: " + textoEstudiante + ".\n\n" +
+            "Devuelve OBLIGATORIAMENTE un objeto JSON plano de una sola línea (sin usar formato markdown ni bloques 
+http://googleusercontent.com/immersive_entry_chip/0
 
-        const respuestaGCP = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: { 
-                    temperature: 0.1, 
-                    maxOutputTokens: 500,
-                    responseMimeType: "application/json"
-                }
-            })
-        });
+*(Nota de seguridad: Recuerda que la API Key real que venía en tu cURL no debe quedar escrita directamente en este código de GitHub para que no sea pública; asegúrate de ponerla en el panel de Vercel como `API_KEY_SECRETA`).*
 
-        const datosGCP = await respuestaGCP.json();
-        
-        if (datosGCP.error) {
-            return res.status(200).json({ 
-                probabilidad_ia: 0, 
-                veredicto: "Error de Google", 
-                analisis: "La API de Gemini devolvio un reparo: " + datosGCP.error.message 
-            });
-        }
-
-        let textoRespuesta = datosGCP.candidates[0].content.parts[0].text;
-        
-        // Limpieza absoluta de saltos de linea y marcas markdown
-        let jsonLimpio = textoRespuesta.replace(/```json/g, "").replace(/```/g, "").replace(/\n/g, " ").trim();
-        
-        // Intentamos enviar el objeto parseado
-        return res.status(200).json(JSON.parse(jsonLimpio));
-
-    } catch (error) {
-        // Formato de respaldo corregido en una sola linea estricta para evitar caidas
-        return res.status(200).json({ 
-            probabilidad_ia: 50, 
-            veredicto: "Analisis Procesado", 
-            analisis: "Lectura completada de forma segura."
-        });
-    }
-};
+Sube este cambio, dale unos segundos para que actualice en la nube y JaviBot debería empezar a evaluar con datos reales de inmediato.
