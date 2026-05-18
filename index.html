@@ -3,78 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JaviBot - Detector de IA</title>
+    <title>JaviBot - Detector de IA Académico</title>
+
+    <!-- Librerías Externas Seguras para lectura de archivos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
-        .container { background: #ffffff; max-width: 700px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { color: #1a73e8; text-align: center; }
-        .config-btn { float: right; cursor: pointer; font-size: 24px; border: none; background: none; }
-        #modulo-entrenamiento { display: none; background: #202124; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        textarea { width: 100%; height: 150px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
-        .btn-analizar { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-analizar:hover { background: #1557b0; }
-        #resultado { margin-top: 20px; padding: 20px; border-radius: 8px; display: none; background: #e8f0fe; border: 1px solid #1a73e8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background-color: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: relative; }
+        
+        .header-container { display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 10px; }
+        h1 { color: #2c3e50; text-align: center; margin-right: 10px; font-size: 2.2em; margin-bottom: 5px; }
+        .javibot-logo { font-size: 1.8em; margin-right: 10px; }
+        .config-btn { cursor: pointer; font-size: 24px; opacity: 0.5; transition: opacity 0.3s; border: none; background: none; }
+        .config-btn:hover { opacity: 1; }
+        
+        #modulo-entrenamiento { display: none; background-color: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .training-box label { font-weight: bold; display: block; margin-bottom: 5px; color: #a3e4d7; }
+        .training-box textarea { width: 100%; height: 100px; margin-bottom: 15px; font-size: 14px; padding: 10px; border-radius: 4px; border: none; box-sizing: border-box; }
+        .save-btn { background-color: #f39c12; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .save-btn:hover { background-color: #e67e22; }
+        
+        .upload-section { background-color: #eef2f5; padding: 20px; border-radius: 8px; border: 2px dashed #bdc3c7; text-align: center; margin-bottom: 20px; }
+        input[type="file"] { display: none; }
+        .file-label { background-color: #3498db; color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-block; transition: background 0.3s; }
+        .file-label:hover { background-color: #2980b9; }
+        #estado_archivo { display: block; margin-top: 10px; font-size: 14px; color: #7f8c8d; font-weight: bold; }
+
+        .main-text { width: 100%; height: 250px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 20px; resize: vertical; }
+        .btn-analizar { background-color: #27ae60; color: white; border: none; padding: 15px 24px; font-size: 18px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.3s; }
+        .btn-analizar:hover { background-color: #2ecc71; }
+        .btn-analizar:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        #resultado { margin-top: 25px; padding: 25px; border-radius: 8px; display: none; background-color: #e8f8f5; border: 1px solid #a3e4d7; }
+        .footer-gemini { text-align: center; margin-top: 30px; font-size: 14px; color: #7f8c8d; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <button class="config-btn" onclick="toggleEntrenamiento()">⚙️</button>
-        <h1>🤖 JaviBot</h1>
-        <p style="text-align: center; color: #5f6368;">Análisis de autoría académica</p>
-
-        <div id="modulo-entrenamiento">
-            <h3>Calibración</h3>
-            <label>Ejemplos Humanos:</label>
-            <textarea id="ejemplo_humano" style="height: 60px;"></textarea>
-            <label>Ejemplos IA:</label>
-            <textarea id="ejemplo_ia" style="height: 60px;"></textarea>
-            <button onclick="guardarEntrenamiento()" style="margin-top:10px; padding: 5px 10px;">Guardar</button>
+        <div class="header-container">
+            <span class="javibot-logo">🤖</span>
+            <h1>JaviBot</h1>
+            <button class="config-btn" onclick="toggleEntrenamiento()" title="Calibración de JaviBot" type="button">⚙️</button>
         </div>
-
-        <div style="margin: 20px 0; text-align: center; background: #f8fbff; padding: 10px; border: 1px dashed #1a73e8;">
-            <p>Pega el texto directamente en el cuadro de abajo para analizarlo:</p>
-        </div>
-
-        <textarea id="texto_input" placeholder="Pega el informe o ensayo del alumno aquí..."></textarea>
+        <p style="text-align: center; color: #7f8c8d; margin-top: -5px; margin-bottom: 25px;">Asistente de Análisis Léxico Universitario</p>
         
-        <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()">Analizar ahora</button>
+        <div id="modulo-entrenamiento">
+            <h3>Centro de Calibración de JaviBot</h3>
+            <p><small>Alimenta a JaviBot con ejemplos para que afine su puntería analítica.</small></p>
+            <div class="training-box">
+                <label>Ejemplos de textos HUMANOS:</label>
+                <textarea id="ejemplo_humano" placeholder="Pega aquí extractos de informes reales..."></textarea>
+            </div>
+            <div class="training-box">
+                <label>Ejemplos de textos de IA:</label>
+                <textarea id="ejemplo_ia" placeholder="Pega aquí extractos que sepas que hizo ChatGPT..."></textarea>
+            </div>
+            <button class="save-btn" onclick="guardarEntrenamiento()" type="button">Guardar Calibración</button>
+            <span id="save-msg" style="margin-left: 10px; color: #f1c40f; display:none;">¡Memoria actualizada!</span>
+        </div>
+
+        <div class="upload-section">
+            <p style="margin-top: 0;">Sube un documento PDF o Word (.docx):</p>
+            <label class="file-label">
+                <input type="file" id="file_upload" accept=".pdf, .docx" />
+                📄 Cargar Documento
+            </label>
+            <span id="estado_archivo">Ningún archivo seleccionado.</span>
+        </div>
+
+        <textarea id="texto_input" class="main-text" placeholder="El texto aparecerá aquí de forma automática al cargar un archivo, o puedes pegarlo directamente..."></textarea>
+        
+        <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()" type="button">Analizar con JaviBot</button>
         
         <div id="resultado"></div>
+
+        <div class="footer-gemini">
+            <span>✨ Potenciado por Google Gemini en Vercel</span>
+        </div>
     </div>
 
     <script>
+        // Configuración segura del PDF Worker
+        try {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        } catch (e) {
+            console.log("PDF Worker cargado en diferido.");
+        }
+
+        // CARGA Y EXTRACCIÓN DE DOCUMENTOS
+        document.getElementById('file_upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            const estadoTexto = document.getElementById('estado_archivo');
+            const textArea = document.getElementById('texto_input');
+            if (!file) return;
+            estadoTexto.textContent = "⏳ Extrayendo texto...";
+            estadoTexto.style.color = "#d35400";
+            textArea.value = ""; 
+            const ext = file.name.split('.').pop().toLowerCase();
+            try {
+                if (ext === 'pdf') {
+                    const reader = new FileReader();
+                    reader.onload = async function() {
+                        try {
+                            const typedarray = new Uint8Array(this.result);
+                            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                            let fullText = "";
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const content = await page.getTextContent();
+                                fullText += content.items.map(item => item.str).join(' ') + " \n\n";
+                            }
+                            textArea.value = fullText;
+                            estadoTexto.textContent = "✅ PDF extraído con éxito.";
+                            estadoTexto.style.color = "#27ae60";
+                        } catch (err) {
+                            estadoTexto.textContent = "❌ Error al leer PDF.";
+                            estadoTexto.style.color = "#c0392b";
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else if (ext === 'docx') {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        mammoth.extractRawText({arrayBuffer: event.target.result})
+                            .then(r => {
+                                textArea.value = r.value;
+                                estadoTexto.textContent = "✅ Word extraído con éxito.";
+                                estadoTexto.style.color = "#27ae60";
+                            })
+                            .catch(() => {
+                                estadoTexto.textContent = "❌ Error al leer Word.";
+                                estadoTexto.style.color = "#c0392b";
+                            });
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+            } catch (error) {
+                estadoTexto.textContent = "❌ Error al leer archivo.";
+                estadoTexto.style.color = "#c0392b";
+            }
+        });
+
+        // MEMORIA LOCAL DE CALIBRACIÓN
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
+            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
+        });
+
         function toggleEntrenamiento() {
-            const m = document.getElementById('modulo-entrenamiento');
-            m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+            const mod = document.getElementById('modulo-entrenamiento');
+            mod.style.display = mod.style.display === 'block' ? 'none' : 'block';
         }
 
         function guardarEntrenamiento() {
             localStorage.setItem('javibot_humano', document.getElementById('ejemplo_humano').value);
             localStorage.setItem('javibot_ia', document.getElementById('ejemplo_ia').value);
-            alert("Calibración guardada en el navegador.");
+            const msg = document.getElementById('save-msg');
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 2500);
         }
 
-        window.onload = () => {
-            document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
-            document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
-        };
-
+        // PETICIÓN DE ANÁLISIS A LA API DE VERCEL
         async function analizarTexto() {
             const texto = document.getElementById('texto_input').value;
-            const div = document.getElementById('resultado');
+            const divResultado = document.getElementById('resultado');
             const btn = document.getElementById('btn-submit');
             
-            if(!texto.trim()) return alert("Por favor, ingresa un texto primero.");
+            if(!texto.trim()) return alert("Ingresa o carga un texto primero.");
 
             btn.disabled = true;
             btn.innerText = "JaviBot analizando... ⏳";
-            div.style.display = "block";
-            div.innerHTML = "<p>🔍 Analizando patrones léxicos...</p>";
+            divResultado.style.display = "block";
+            divResultado.innerHTML = "<p>🔍 Analizando patrones semánticos...</p>";
 
             try {
-                const res = await fetch('/api/evaluar_texto', {
+                const respuesta = await fetch('/api/evaluar_texto', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -83,56 +189,60 @@
                         ia: localStorage.getItem('javibot_ia') || ""
                     })
                 });
-                
-                // Leemos la respuesta como texto plano primero para evitar caídas por JSON corrupto
-                const textoCrudo = await res.text();
-                
-                let veredictoFinal = "Análisis completado";
-                let probabilidadFinal = 50;
-                let analisisFinal = textoCrudo;
 
-                // Intentamos parsear de forma segura
+                const textoCrudo = await respuesta.text();
+                
+                let datos;
+                let probabilidad = 50;
+                let veredicto = "Análisis Procesado";
+                let analisis = textoCrudo;
+
                 try {
-                    const datos = JSON.parse(textoCrudo);
-                    veredictoFinal = datos.veredicto || "Analizado";
-                    probabilidadFinal = datos.probabilidad_ia ?? 50;
-                    analisisFinal = datos.analisis || "Sin detalles adicionales.";
+                    datos = JSON.parse(textoCrudo);
+                    probabilidad = datos.probabilidad_ia ?? 50;
+                    veredicto = datos.veredicto || "Analizado";
+                    analisis = datos.analisis || "Reporte listo.";
                 } catch (eParseo) {
-                    // Si el JSON falla, usamos extracción inteligente por palabras clave directamente del texto crudo
-                    analisisFinal = textoCrudo;
+                    // Fallback de parseo inteligente en caso de respuesta semi-estructurada
+                    analisis = textoCrudo;
                     if (textoCrudo.toLowerCase().includes("humano")) {
-                        veredictoFinal = "Probable Escrito Humano";
-                        probabilidadFinal = 15;
+                        veredicto = "Escrito Humano Estimado";
+                        probabilidad = 15;
                     } else if (textoCrudo.toLowerCase().includes("ia") || textoCrudo.toLowerCase().includes("inteligencia")) {
-                        veredictoFinal = "Sospecha de Inteligencia Artificial";
-                        probabilidadFinal = 85;
+                        veredicto = "Sospecha de Inteligencia Artificial";
+                        probabilidad = 85;
                     }
                     
-                    // Intentamos pescar cualquier número que ande flotando en el texto
-                    const numeroEncontrado = textoCrudo.match(/\d+/);
-                    if (numeroEncontrado) {
-                        probabilidadFinal = parseInt(numeroEncontrado[0]);
+                    const matchNum = textoCrudo.match(/(\d+)%/);
+                    if (matchNum) {
+                        probabilidad = parseInt(matchNum[1]);
+                    } else {
+                        const matchSimple = textoCrudo.match(/\d+/);
+                        if (matchSimple && parseInt(matchSimple[0]) <= 100) {
+                            probabilidad = parseInt(matchSimple[0]);
+                        }
                     }
                 }
 
-                let colorAlerta = "#27ae60"; 
-                if (probabilidadFinal > 75) colorAlerta = "#c0392b"; 
-                else if (probabilidadFinal > 40) colorAlerta = "#f39c12";
+                let colorAlerta = "#27ae60"; // Verde
+                if (probabilidad > 75) colorAlerta = "#c0392b"; // Rojo
+                else if (probabilidad > 40) colorAlerta = "#f39c12"; // Naranja
 
-                div.innerHTML = `
-                    <h3 style="color: ${colorAlerta}; margin-top: 0;">Veredicto: ${veredictoFinal}</h3>
-                    <p><strong>Probabilidad de IA:</strong> ${probabilidadFinal}%</p>
-                    <hr style="border:0; border-top: 1px solid #ccc; margin: 15px 0;">
-                    <p style="line-height: 1.4; white-space: pre-wrap;"><strong>Análisis de JaviBot:</strong> ${analisisFinal}</p>
+                divResultado.innerHTML = `
+                    <h3 style="color: ${colorAlerta}; margin-top:0;">Veredicto: ${veredicto}</h3>
+                    <p style="font-size: 1.2em; margin: 10px 0;"><strong>Probabilidad de IA:</strong> ${probabilidad}%</p>
+                    <hr style="border: 0; border-top: 1px solid #bdc3c7; margin: 15px 0;">
+                    <p style="line-height: 1.5; white-space: pre-wrap;"><strong>Reporte Analítico:</strong> ${analisis}</p>
                 `;
-            } catch (e) {
-                div.innerHTML = `
-                    <div style="color:#c0392b; padding:12px; background:#fdf2f2; border:1px solid #f5c6cb; border-radius:6px; font-family:monospace;">
-                        🛑 <strong>Error Crítico en la interfaz:</strong><br>${e.message}
+
+            } catch (error) {
+                divResultado.innerHTML = `
+                    <div style="color:#c0392b; font-family:monospace; padding: 12px; background: #fdf2f2; border: 1px solid #f5c6cb; border-radius: 6px;">
+                        🛑 <strong>Error en el proceso:</strong><br>${error.message}
                     </div>`;
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Analizar ahora";
+                btn.innerText = "Analizar con JaviBot";
             }
         }
     </script>
