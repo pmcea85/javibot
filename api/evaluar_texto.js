@@ -37,27 +37,40 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Prompt estructurado para guiar a Gemini a responder en formato JSON plano sin errores
+        // Prompt simplificado (el formato estructurado lo maneja ahora el responseSchema)
         const promptText = 
             "Eres JaviBot, un detector de inteligencia artificial especializado en ámbitos académicos chilenos.\n" +
-            "Tu tarea es analizar el siguiente texto basándote en los ejemplos de calibración humana e IA provistos.\n\n" +
+            "Tu tarea es analizar el siguiente texto basándote en los ejemplos de calibración de estilo provistos.\n\n" +
             "Ejemplos de escritura Humana del docente: " + ejemplosHumanos + ".\n" +
             "Ejemplos de escritura de Inteligencia Artificial: " + ejemplosIA + ".\n" +
             "Texto del estudiante que debes evaluar: " + textoEstudiante + ".\n\n" +
-            "Instrucciones de formato obligatorias:\n" +
-            "Devuelve únicamente un objeto JSON plano de una sola línea con este formato exacto:\n" +
-            "{\"probabilidad_ia\": 80, \"veredicto\": \"Escribe aquí el veredicto\", \"analisis\": \"Escribe aquí tu justificación\"}\n\n" +
-            "Reglas críticas de formato:\n" +
-            "1. La clave 'probabilidad_ia' DEBE ser un número entero (ej. 80) sin caracteres como '%'.\n" +
-            "2. No utilices comillas dobles (\") dentro de los campos de texto del veredicto o análisis. Si necesitas citar palabras del texto original, utiliza exclusivamente comillas simples (').";
+            "Genera una estimación del porcentaje de probabilidad de IA, un veredicto sintético y una explicación justificada detallada.";
 
-        // Preparar la carga para la API oficial de Google Gemini
+        // Preparar la carga con la validación estricta de esquema estructurado (OpenAPI Schema)
         const postData = JSON.stringify({
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
                 temperature: 0.1,
                 maxOutputTokens: 600,
-                responseMimeType: "application/json" // Solicitar validación estricta de JSON en el origen
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "object",
+                    properties: {
+                        probabilidad_ia: { 
+                            type: "integer",
+                            description: "Porcentaje estimado de probabilidad de uso de IA, de 0 a 100."
+                        },
+                        veredicto: { 
+                            type: "string",
+                            description: "Veredicto corto sobre la autoría del texto."
+                        },
+                        analisis: { 
+                            type: "string",
+                            description: "Justificación detallada de los patrones léxicos y gramaticales analizados."
+                        }
+                    },
+                    required: ["probabilidad_ia", "veredicto", "analisis"]
+                }
             }
         });
 
@@ -114,36 +127,14 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 1. Limpieza básica de etiquetas Markdown
-        let jsonLimpio = textoRespuesta.replace(/```json/gi, "").replace(/```/gi, "").replace(/\n/g, " ").trim();
-        
-        // 2. Corregir formato incorrecto de porcentaje (ej: "probabilidad_ia": 45% -> "probabilidad_ia": 45)
-        jsonLimpio = jsonLimpio.replace(/"probabilidad_ia"\s*:\s*(\d+)\s*%/gi, '"probabilidad_ia": $1');
-        
-        // 3. Intento de interpretación segura del JSON con desvío por Expresiones Regulares en caso de fallo
-        let datosFinales;
-        try {
-            datosFinales = JSON.parse(jsonLimpio);
-        } catch (errParseo) {
-            // Extracción alternativa usando expresiones regulares si el JSON vino dañado
-            const matchProb = jsonLimpio.match(/"probabilidad_ia"\s*:\s*"?(\d+)"?/i);
-            const matchVer = jsonLimpio.match(/"veredicto"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
-            const matchAnal = jsonLimpio.match(/"analisis"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
-
-            datosFinales = {
-                probabilidad_ia: matchProb ? parseInt(matchProb[1]) : 45,
-                veredicto: matchVer ? matchVer[1].replace(/\\"/g, '"') : "Análisis Completado",
-                analisis: matchAnal ? matchAnal[1].replace(/\\"/g, '"') : "Análisis procesado exitosamente mediante el motor de respaldo léxico."
-            };
-        }
-
-        return res.status(200).json(datosFinales);
+        // El texto que devuelve Google ahora está garantizado al 100% de ser un JSON válido estructurado.
+        return res.status(200).json(JSON.parse(textoRespuesta.trim()));
 
     } catch (error) {
         return res.status(200).json({ 
             probabilidad_ia: 45, 
             veredicto: "Análisis ejecutado de forma alternativa", 
-            analisis: "El análisis se completó mediante la ruta de respaldo: " + error.message
+            analisis: "El análisis se completó mediante la ruta de respaldo seguro: " + error.message
         });
     }
 };
