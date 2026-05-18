@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JaviBot - Detector de IA Académico</title>
 
-    <!-- Librerías Externas Seguras para lectura de archivos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
@@ -36,8 +35,12 @@
         .btn-analizar:hover { background-color: #2ecc71; }
         .btn-analizar:disabled { background-color: #95a5a6; cursor: not-allowed; }
         
-        #resultado { margin-top: 25px; padding: 25px; border-radius: 8px; display: none; background-color: #e8f8f5; border: 1px solid #a3e4d7; }
-        .footer-gemini { text-align: center; margin-top: 30px; font-size: 14px; color: #7f8c8d; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        #resultado { margin-top: 25px; display: none; }
+        .resultado-box { padding: 25px; border-radius: 8px; background-color: #fafafa; border: 1px solid #ddd; }
+        .rango-badge { display: inline-block; padding: 8px 15px; border-radius: 20px; color: white; font-weight: bold; font-size: 1.1em; margin: 15px 0; }
+        .evidencia-texto { background: white; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; }
+        
+        .footer-gemini { text-align: center; margin-top: 30px; font-size: 14px; color: #7f8c8d; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -51,18 +54,16 @@
         <p style="text-align: center; color: #7f8c8d; margin-top: -5px; margin-bottom: 25px;">Asistente de Análisis Léxico Universitario</p>
         
         <div id="modulo-entrenamiento">
-            <h3>Centro de Calibración de JaviBot</h3>
-            <p><small>Alimenta a JaviBot con ejemplos para que afine su puntería analítica.</small></p>
+            <h3>Centro de Calibración</h3>
             <div class="training-box">
-                <label>Ejemplos de textos HUMANOS:</label>
+                <label>Ejemplos HUMANOS:</label>
                 <textarea id="ejemplo_humano" placeholder="Pega aquí extractos de informes reales..."></textarea>
             </div>
             <div class="training-box">
-                <label>Ejemplos de textos de IA:</label>
-                <textarea id="ejemplo_ia" placeholder="Pega aquí extractos que sepas que hizo ChatGPT..."></textarea>
+                <label>Ejemplos de IA:</label>
+                <textarea id="ejemplo_ia" placeholder="Pega aquí extractos de ChatGPT..."></textarea>
             </div>
             <button class="save-btn" onclick="guardarEntrenamiento()" type="button">Guardar Calibración</button>
-            <span id="save-msg" style="margin-left: 10px; color: #f1c40f; display:none;">¡Memoria actualizada!</span>
         </div>
 
         <div class="upload-section">
@@ -74,26 +75,18 @@
             <span id="estado_archivo">Ningún archivo seleccionado.</span>
         </div>
 
-        <textarea id="texto_input" class="main-text" placeholder="El texto aparecerá aquí de forma automática al cargar un archivo, o puedes pegarlo directamente..."></textarea>
+        <textarea id="texto_input" class="main-text" placeholder="Pega el texto a evaluar aquí..."></textarea>
         
         <button class="btn-analizar" id="btn-submit" onclick="analizarTexto()" type="button">Analizar con JaviBot</button>
         
         <div id="resultado"></div>
 
-        <div class="footer-gemini">
-            <span>✨ Potenciado por Google Gemini en Vercel</span>
-        </div>
+        <div class="footer-gemini">✨ Potenciado por Google Gemini en Vercel</div>
     </div>
 
     <script>
-        // Configuración segura del PDF Worker
-        try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-        } catch (e) {
-            console.log("PDF Worker cargado en diferido.");
-        }
+        try { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js'; } catch (e) {}
 
-        // CARGA Y EXTRACCIÓN DE DOCUMENTOS
         document.getElementById('file_upload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             const estadoTexto = document.getElementById('estado_archivo');
@@ -119,35 +112,21 @@
                             textArea.value = fullText;
                             estadoTexto.textContent = "✅ PDF extraído con éxito.";
                             estadoTexto.style.color = "#27ae60";
-                        } catch (err) {
-                            estadoTexto.textContent = "❌ Error al leer PDF.";
-                            estadoTexto.style.color = "#c0392b";
-                        }
+                        } catch (err) { estadoTexto.textContent = "❌ Error al leer PDF."; estadoTexto.style.color = "#c0392b"; }
                     };
                     reader.readAsArrayBuffer(file);
                 } else if (ext === 'docx') {
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         mammoth.extractRawText({arrayBuffer: event.target.result})
-                            .then(r => {
-                                textArea.value = r.value;
-                                estadoTexto.textContent = "✅ Word extraído con éxito.";
-                                estadoTexto.style.color = "#27ae60";
-                            })
-                            .catch(() => {
-                                estadoTexto.textContent = "❌ Error al leer Word.";
-                                estadoTexto.style.color = "#c0392b";
-                            });
+                            .then(r => { textArea.value = r.value; estadoTexto.textContent = "✅ Word extraído con éxito."; estadoTexto.style.color = "#27ae60"; })
+                            .catch(() => { estadoTexto.textContent = "❌ Error al leer Word."; estadoTexto.style.color = "#c0392b"; });
                     };
                     reader.readAsArrayBuffer(file);
                 }
-            } catch (error) {
-                estadoTexto.textContent = "❌ Error al leer archivo.";
-                estadoTexto.style.color = "#c0392b";
-            }
+            } catch (error) { estadoTexto.textContent = "❌ Error al leer archivo."; estadoTexto.style.color = "#c0392b"; }
         });
 
-        // MEMORIA LOCAL DE CALIBRACIÓN
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('ejemplo_humano').value = localStorage.getItem('javibot_humano') || "";
             document.getElementById('ejemplo_ia').value = localStorage.getItem('javibot_ia') || "";
@@ -161,12 +140,9 @@
         function guardarEntrenamiento() {
             localStorage.setItem('javibot_humano', document.getElementById('ejemplo_humano').value);
             localStorage.setItem('javibot_ia', document.getElementById('ejemplo_ia').value);
-            const msg = document.getElementById('save-msg');
-            msg.style.display = 'inline';
-            setTimeout(() => msg.style.display = 'none', 2500);
+            alert("Memoria calibrada correctamente.");
         }
 
-        // PETICIÓN DE ANÁLISIS A LA API DE VERCEL
         async function analizarTexto() {
             const texto = document.getElementById('texto_input').value;
             const divResultado = document.getElementById('resultado');
@@ -175,9 +151,9 @@
             if(!texto.trim()) return alert("Ingresa o carga un texto primero.");
 
             btn.disabled = true;
-            btn.innerText = "JaviBot analizando... ⏳";
+            btn.innerText = "JaviBot buscando evidencia... ⏳";
             divResultado.style.display = "block";
-            divResultado.innerHTML = "<p>🔍 Analizando patrones semánticos...</p>";
+            divResultado.innerHTML = "<div class='resultado-box'><p>🔍 Analizando sintaxis, conectores y patrones rítmicos...</p></div>";
 
             try {
                 const respuesta = await fetch('/api/evaluar_texto', {
@@ -191,54 +167,53 @@
                 });
 
                 const textoCrudo = await respuesta.text();
-                
                 let datos;
-                let probabilidad = 50;
-                let veredicto = "Análisis Procesado";
-                let analisis = textoCrudo;
-
+                
                 try {
                     datos = JSON.parse(textoCrudo);
-                    probabilidad = datos.probabilidad_ia ?? 50;
-                    veredicto = datos.veredicto || "Analizado";
-                    analisis = datos.analisis || "Reporte listo.";
-                } catch (eParseo) {
-                    // Fallback de parseo inteligente en caso de respuesta semi-estructurada
-                    analisis = textoCrudo;
-                    if (textoCrudo.toLowerCase().includes("humano")) {
-                        veredicto = "Escrito Humano Estimado";
-                        probabilidad = 15;
-                    } else if (textoCrudo.toLowerCase().includes("ia") || textoCrudo.toLowerCase().includes("inteligencia")) {
-                        veredicto = "Sospecha de Inteligencia Artificial";
-                        probabilidad = 85;
-                    }
-                    
-                    const matchNum = textoCrudo.match(/(\d+)%/);
-                    if (matchNum) {
-                        probabilidad = parseInt(matchNum[1]);
-                    } else {
-                        const matchSimple = textoCrudo.match(/\d+/);
-                        if (matchSimple && parseInt(matchSimple[0]) <= 100) {
-                            probabilidad = parseInt(matchSimple[0]);
-                        }
-                    }
+                } catch(e) {
+                    throw new Error("El servidor falló al estructurar los datos. Detalle: " + textoCrudo.substring(0, 100));
                 }
 
-                let colorAlerta = "#27ae60"; // Verde
-                if (probabilidad > 75) colorAlerta = "#c0392b"; // Rojo
-                else if (probabilidad > 40) colorAlerta = "#f39c12"; // Naranja
+                if (datos.error) { throw new Error(datos.error); }
+
+                // Lógica de Semáforo y Colores
+                let nivel = (datos.nivel_sospecha || "Bajo").toLowerCase();
+                let colorPrimario = "#27ae60"; // Verde por defecto
+                let icono = "🟢";
+                let tituloNivel = "Sospecha Baja o Nula";
+
+                if (nivel.includes("alto") || nivel.includes("alta")) {
+                    colorPrimario = "#c0392b"; // Rojo
+                    icono = "🔴";
+                    tituloNivel = "Alta Sospecha de IA";
+                } else if (nivel.includes("moderado") || nivel.includes("moderada")) {
+                    colorPrimario = "#f39c12"; // Amarillo/Naranja
+                    icono = "🟡";
+                    tituloNivel = "Sospecha Moderada de IA";
+                }
 
                 divResultado.innerHTML = `
-                    <h3 style="color: ${colorAlerta}; margin-top:0;">Veredicto: ${veredicto}</h3>
-                    <p style="font-size: 1.2em; margin: 10px 0;"><strong>Probabilidad de IA:</strong> ${probabilidad}%</p>
-                    <hr style="border: 0; border-top: 1px solid #bdc3c7; margin: 15px 0;">
-                    <p style="line-height: 1.5; white-space: pre-wrap;"><strong>Reporte Analítico:</strong> ${analisis}</p>
+                    <div class="resultado-box" style="border-top: 5px solid ${colorPrimario};">
+                        <h2 style="color: ${colorPrimario}; margin-top: 0; display: flex; align-items: center; gap: 10px;">
+                            ${icono} ${tituloNivel}
+                        </h2>
+                        
+                        <div class="rango-badge" style="background-color: ${colorPrimario};">
+                            Rango Estimado: ${datos.rango_minimo}% - ${datos.rango_maximo}%
+                        </div>
+
+                        <h4 style="margin-bottom: 5px; color: #2c3e50;">🔎 Evidencia Detectada:</h4>
+                        <div class="evidencia-texto">
+                            ${datos.evidencia.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
                 `;
 
             } catch (error) {
                 divResultado.innerHTML = `
-                    <div style="color:#c0392b; font-family:monospace; padding: 12px; background: #fdf2f2; border: 1px solid #f5c6cb; border-radius: 6px;">
-                        🛑 <strong>Error en el proceso:</strong><br>${error.message}
+                    <div class="resultado-box" style="border-top: 5px solid #c0392b; background: #fdf2f2;">
+                        🛑 <strong>Error en el proceso:</strong><br><br>${error.message}
                     </div>`;
             } finally {
                 btn.disabled = false;
